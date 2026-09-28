@@ -1,24 +1,9 @@
 import { Canvas, FabricObject } from "fabric";
 import { gsap } from "gsap";
-import { getDocumentDuration, setSerializeGuard } from "@/lib/fabric/document";
-import { EFFECTS } from "@/lib/fabric/effects";
+import { setSerializeGuard } from "@/lib/fabric/document";
+import { buildTimeline } from "@/lib/fabric/motion";
 
-export type Animation = {
-  effect: string;
-  duration: number;
-};
-
-declare module "fabric" {
-  interface FabricObject {
-    entrance?: Animation;
-    exit?: Animation;
-  }
-
-  interface SerializedObjectProps {
-    entrance?: Animation;
-    exit?: Animation;
-  }
-}
+export type { Animation } from "@/lib/fabric/types";
 
 export const DEFAULT_ANIMATION_DURATION = 1;
 
@@ -56,23 +41,7 @@ export const createAnimations = (canvas: Canvas) => {
 
   const build = () => {
     timeline.kill();
-    timeline = gsap.timeline({ paused: true });
-
-    for (const object of canvas.getObjects()) {
-      const { entrance, exit, start, duration } = object;
-
-      const entranceLength = entrance && EFFECTS[entrance.effect] ? Math.min(entrance.duration, duration) : 0;
-      if (entrance && entranceLength > 0) {
-        EFFECTS[entrance.effect].in(timeline, object, canvas, start, entranceLength);
-      }
-
-      const exitLength = exit && EFFECTS[exit.effect] ? Math.min(exit.duration, duration - entranceLength) : 0;
-      if (exit && exitLength > 0) {
-        EFFECTS[exit.effect].out(timeline, object, canvas, start + duration - exitLength, exitLength);
-      }
-    }
-
-    timeline.addLabel("end", getDocumentDuration(canvas));
+    timeline = buildTimeline(canvas.getObjects(), canvas);
   };
 
   const seek = (target: number) => {

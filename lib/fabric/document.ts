@@ -1,23 +1,11 @@
 import { Canvas, FabricImage, FabricObject } from "fabric";
 import { prepareImage } from "@/lib/fabric/images";
-
-declare module "fabric" {
-  interface FabricObject {
-    id: string;
-    start: number;
-    duration: number;
-  }
-
-  interface SerializedObjectProps {
-    id: string;
-    start: number;
-    duration: number;
-  }
-}
+import { getLength } from "@/lib/fabric/motion";
+import "@/lib/fabric/types";
 
 export const DEFAULT_DURATION = 5;
 
-export const DOCUMENT_PROPERTIES = ["id", "start", "duration", "entrance", "exit"];
+export const DOCUMENT_PROPERTIES = ["id", "start", "duration", "entrance", "exit", "fontURL"];
 
 export const registerDocumentProperties = () => {
   FabricObject.customProperties = DOCUMENT_PROPERTIES;
@@ -70,8 +58,7 @@ export const loadDocument = async (canvas: Canvas, json: string) => {
   canvas.requestRenderAll();
 };
 
-export const getDocumentDuration = (canvas: Canvas) =>
-  canvas.getObjects().reduce((end, object) => Math.max(end, object.start + object.duration), 0);
+export const getDocumentDuration = (canvas: Canvas) => getLength(canvas.getObjects());
 
 const STORAGE_KEY = "fabric-video-editor:document";
 

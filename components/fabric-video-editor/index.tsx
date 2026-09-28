@@ -16,6 +16,7 @@ import {
 } from "@/lib/fabric/document";
 import { createHistory, History } from "@/lib/fabric/history";
 import { createPlayhead, Playhead } from "@/lib/fabric/playhead";
+import { exportDocument } from "@/lib/fabric/export";
 import { SVG_STRING } from "@/components/fabric-video-editor/svg-string";
 import TimeWindow from "@/components/fabric-video-editor/time-window";
 import Timeline from "@/components/fabric-video-editor/timeline";
@@ -45,6 +46,7 @@ const FabricVideoEditor = () => {
   const [history, setHistory] = useState<History | null>(null);
   const [playhead, setPlayhead] = useState<Playhead | null>(null);
   const [selected, setSelected] = useState<FabricObject | null>(null);
+  const [exporting, setExporting] = useState<{ progress: number; url?: string; error?: string } | null>(null);
   const [, refresh] = useReducer((count: number) => count + 1, 0);
 
   useEffect(() => {
@@ -146,6 +148,17 @@ const FabricVideoEditor = () => {
     canvas.requestRenderAll();
   };
 
+  const onExport = async () => {
+    playhead.pause();
+    setExporting({ progress: 0 });
+    try {
+      const url = await exportDocument(canvas, (progress) => setExporting({ progress }));
+      setExporting({ progress: 1, url });
+    } catch (error) {
+      setExporting({ progress: 0, error: (error as Error).message });
+    }
+  };
+
   const length = getDocumentDuration(canvas);
   const drift = Math.round(playhead.frameClockDrift * 1000);
 
@@ -175,6 +188,18 @@ const FabricVideoEditor = () => {
         <Button onClick={history.redo} disabled={!history.canRedo()}>
           Redo
         </Button>
+        <Button onClick={onExport} disabled={length === 0 || (!!exporting && !exporting.url && !exporting.error)}>
+          Export MP4
+        </Button>
+        {exporting && !exporting.url && !exporting.error && (
+          <span className="text-sm text-gray-500 tabular-nums">rendering {Math.round(exporting.progress * 100)}%</span>
+        )}
+        {exporting?.url && (
+          <a className="text-sm text-blue-600 underline" href={exporting.url}>
+            Download MP4
+          </a>
+        )}
+        {exporting?.error && <span className="text-sm text-red-600">{exporting.error}</span>}
       </Toolbar>
 
       <Timeline canvas={canvas} playhead={playhead} />

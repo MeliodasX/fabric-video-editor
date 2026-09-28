@@ -10,7 +10,7 @@ export const addText = (canvas: Canvas, text = "Double-click to edit") => {
 };
 
 export type TextProps = Partial<
-  Pick<IText, "fontSize" | "fontWeight" | "fontStyle" | "underline" | "textAlign" | "fill" | "fontFamily">
+  Pick<IText, "fontSize" | "fontWeight" | "fontStyle" | "underline" | "textAlign" | "fill" | "fontFamily" | "fontURL">
 >;
 
 export const updateActiveText = (canvas: Canvas, props: TextProps) => {
@@ -26,5 +26,5 @@ export const updateActiveText = (canvas: Canvas, props: TextProps) => {
 
 export const setActiveTextFont = async (canvas: Canvas, family: string, url?: string) => {
   if (url) await loadFont(family, url);
-  updateActiveText(canvas, { fontFamily: family });
+  updateActiveText(canvas, { fontFamily: family, fontURL: url });
 };

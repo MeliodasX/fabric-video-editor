@@ -1,5 +1,6 @@
 import { Canvas, FabricObject } from "fabric";
 import { getDocumentDuration } from "@/lib/fabric/document";
+import { isVisibleAt } from "@/lib/fabric/motion";
 import { VideoClip } from "@/lib/fabric/video";
 import { AudioTrack } from "@/lib/fabric/audio";
 import { createAnimations } from "@/lib/fabric/animations";
@@ -25,8 +26,7 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
     const length = getDocumentDuration(canvas);
 
     for (const object of canvas.getObjects()) {
-      const end = object.start + object.duration;
-      object.visible = object.start <= time && (time < end || (time === end && end === length));
+      object.visible = isVisibleAt(object, time, length);
     }
 
     for (const clip of clips()) {

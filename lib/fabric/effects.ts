@@ -1,14 +1,16 @@
-import { Canvas, FabricObject, Rect } from "fabric";
+import { FabricObject, Rect } from "fabric";
 import { gsap } from "gsap";
 
 type Vars = Record<string, number>;
 
-type Hidden = (object: FabricObject, canvas: Canvas) => Vars;
+type Frame = { width: number; height: number };
+
+type Hidden = (object: FabricObject, frame: Frame) => Vars;
 
 export type Effect = {
   label: string;
-  in: (timeline: gsap.core.Timeline, object: FabricObject, canvas: Canvas, at: number, duration: number) => void;
-  out: (timeline: gsap.core.Timeline, object: FabricObject, canvas: Canvas, at: number, duration: number) => void;
+  in: (timeline: gsap.core.Timeline, object: FabricObject, frame: Frame, at: number, duration: number) => void;
+  out: (timeline: gsap.core.Timeline, object: FabricObject, frame: Frame, at: number, duration: number) => void;
 };
 
 const tween = (
@@ -29,29 +31,29 @@ const current = (object: FabricObject, keys: string[]): Vars =>
 
 const preset = (label: string, hidden: Hidden, easeIn: string, easeOut: string): Effect => ({
   label,
-  in: (timeline, object, canvas, at, duration) => {
-    const from = hidden(object, canvas);
+  in: (timeline, object, frame, at, duration) => {
+    const from = hidden(object, frame);
     tween(timeline, object, from, current(object, Object.keys(from)), at, duration, easeIn);
   },
-  out: (timeline, object, canvas, at, duration) => {
-    const to = hidden(object, canvas);
+  out: (timeline, object, frame, at, duration) => {
+    const to = hidden(object, frame);
     tween(timeline, object, current(object, Object.keys(to)), to, at, duration, easeOut);
   },
 });
 
 const offscreen =
   (direction: "left" | "right" | "up" | "down"): Hidden =>
-  (object, canvas): Vars => {
+  (object, frame): Vars => {
     const { width, height } = object.getBoundingRect();
     switch (direction) {
       case "left":
         return { left: -width / 2 };
       case "right":
-        return { left: canvas.width + width / 2 };
+        return { left: frame.width + width / 2 };
       case "up":
         return { top: -height / 2 };
       case "down":
-        return { top: canvas.height + height / 2 };
+        return { top: frame.height + height / 2 };
     }
   };
 
@@ -89,8 +91,8 @@ const wipe = (label: string, axis: "x" | "y"): Effect => {
 
   return {
     label,
-    in: (timeline, object, _canvas, at, duration) => attach(timeline, object, 0, 1, at, duration),
-    out: (timeline, object, _canvas, at, duration) => attach(timeline, object, 1, 0, at, duration),
+    in: (timeline, object, _frame, at, duration) => attach(timeline, object, 0, 1, at, duration),
+    out: (timeline, object, _frame, at, duration) => attach(timeline, object, 1, 0, at, duration),
   };
 };
 
