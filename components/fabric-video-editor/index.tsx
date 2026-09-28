@@ -5,6 +5,7 @@ import { Canvas, FabricImage, FabricObject, IText } from "fabric";
 import { addSVGViaPath, addSVGViaString, addSVGViaURL } from "@/lib/fabric/svg";
 import { addImageFromFile, addImageFromURL, replaceImageSource } from "@/lib/fabric/images";
 import { addText, setActiveTextFont, updateActiveText } from "@/lib/fabric/text";
+import { addVideoClip, addVideoFromFile } from "@/lib/fabric/video";
 import {
   attachDocument,
   getDocumentDuration,
@@ -13,10 +14,16 @@ import {
   saveToStorage,
 } from "@/lib/fabric/document";
 import { createHistory, History } from "@/lib/fabric/history";
+import { createPlayhead, Playhead } from "@/lib/fabric/playhead";
 import { SVG_STRING } from "@/components/fabric-video-editor/svg-string";
 import TimeWindow from "@/components/fabric-video-editor/time-window";
 
 const SAMPLE_IMAGE_URL = "https://picsum.photos/id/1015/1200/800";
+
+const SAMPLE_VIDEOS = [
+  { label: "Add counter clip (6 s)", src: "/videos/counter-6s.mp4" },
+  { label: "Add tinted clip (8 s)", src: "/videos/counter-8s-tinted.mp4" },
+];
 
 const FONTS = [{ family: "Arial" }, { family: "Georgia" }, { family: "Pacifico", url: "/fonts/Pacifico-Regular.ttf" }];
 
@@ -32,6 +39,7 @@ const FabricVideoEditor = () => {
 
   const [canvas, setCanvas] = useState<Canvas | null>(null);
   const [history, setHistory] = useState<History | null>(null);
+  const [playhead, setPlayhead] = useState<Playhead | null>(null);
   const [selected, setSelected] = useState<FabricObject | null>(null);
   const [, refresh] = useReducer((count: number) => count + 1, 0);
 
@@ -45,7 +53,11 @@ const FabricVideoEditor = () => {
     });
     attachDocument(c);
 
-    const h = createHistory(c, refresh);
+    const p = createPlayhead(c, refresh);
+    const h = createHistory(c, () => {
+      p.seek(p.time);
+      refresh();
+    });
 
     const onSelection = ({ selected }: { selected: FabricObject[] }) =>
       setSelected(selected.length === 1 ? selected[0] : null);
@@ -55,15 +67,17 @@ const FabricVideoEditor = () => {
 
     setCanvas(c);
     setHistory(h);
+    setPlayhead(p);
 
     return () => {
+      p.dispose();
       h.dispose();
       c.dispose();
     };
   }, []);
 
   useEffect(() => {
-    if (!canvas || !history) return;
+    if (!canvas || !history || !playhead) return;
 
     const deleteSelection = () => {
       const objects = canvas.getActiveObjects();
@@ -89,14 +103,17 @@ const FabricVideoEditor = () => {
       } else if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         deleteSelection();
+      } else if (event.key === " ") {
+        event.preventDefault();
+        playhead.toggle();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canvas, history]);
+  }, [canvas, history, playhead]);
 
-  if (!canvas || !history) {
+  if (!canvas || !history || !playhead) {
     return <Stage />;
   }
 
@@ -113,18 +130,41 @@ const FabricVideoEditor = () => {
   const onLoad = () => {
     const json = readFromStorage();
     if (!json) return;
+    playhead.pause();
     setSelected(null);
     history.load(json);
   };
 
   const onNew = () => {
+    playhead.pause();
     setSelected(null);
     history.transaction(() => canvas.clear());
     canvas.requestRenderAll();
   };
 
+  const length = getDocumentDuration(canvas);
+
   return (
     <Stage>
+      <Toolbar title="Playback">
+        <Button onClick={playhead.toggle} disabled={length === 0}>
+          {playhead.playing ? "Pause" : "Play"}
+        </Button>
+        <input
+          type="range"
+          className="w-[520px]"
+          min={0}
+          max={length}
+          step={0.01}
+          value={playhead.time}
+          disabled={length === 0}
+          onChange={(event) => playhead.seek(Number(event.target.value))}
+        />
+        <span className="w-32 text-sm text-gray-500 tabular-nums">
+          {playhead.time.toFixed(2)} / {length.toFixed(2)} s
+        </span>
+      </Toolbar>
+
       <Toolbar title="Document">
         <Button onClick={() => saveToStorage(canvas)}>Save</Button>
         <Button onClick={onLoad}>Load</Button>
@@ -135,10 +175,20 @@ const FabricVideoEditor = () => {
         <Button onClick={history.redo} disabled={!history.canRedo()}>
           Redo
         </Button>
-        <span className="self-center text-sm text-gray-500">Length {getDocumentDuration(canvas).toFixed(1)} s</span>
       </Toolbar>
 
       {selected && <TimeWindow canvas={canvas} object={selected} />}
+
+      <Toolbar title="Videos">
+        {SAMPLE_VIDEOS.map((video) => (
+          <Button key={video.src} onClick={() => addVideoClip(canvas, video.src)}>
+            {video.label}
+          </Button>
+        ))}
+        <FilePicker accept="video/*" onPick={(file) => addVideoFromFile(canvas, file)}>
+          Upload video
+        </FilePicker>
+      </Toolbar>
 
       <Toolbar title="Shapes">
         <Button onClick={() => addSVGViaPath(canvas)}>Add SVG via Path</Button>
@@ -154,7 +204,7 @@ const FabricVideoEditor = () => {
         <FilePicker accept="image/*" onPick={replaceImage}>
           Replace selected image
         </FilePicker>
-        <span className="self-center text-sm text-gray-500">Double-click an image to crop it.</span>
+        <span className="self-center text-sm text-gray-500">Double-click an image or video to crop it.</span>
       </Toolbar>
 
       <Toolbar title="Text">

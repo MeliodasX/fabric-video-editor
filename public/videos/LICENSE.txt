@@ -1,0 +1,2 @@
+counter-6s.mp4 is sample-1mb.mp4 from https://truefilesize.com/video/mp4/ (CC0 1.0, public domain).
+counter-8s-tinted.mp4 is an 8 second excerpt of sample-5mb.mp4 from the same source, hue-shifted and downscaled.
