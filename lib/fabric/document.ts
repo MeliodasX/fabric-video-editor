@@ -17,7 +17,7 @@ declare module "fabric" {
 
 export const DEFAULT_DURATION = 5;
 
-export const DOCUMENT_PROPERTIES = ["id", "start", "duration"];
+export const DOCUMENT_PROPERTIES = ["id", "start", "duration", "entrance", "exit"];
 
 export const registerDocumentProperties = () => {
   FabricObject.customProperties = DOCUMENT_PROPERTIES;
@@ -40,7 +40,23 @@ export const addToCanvas = (canvas: Canvas, object: FabricObject) => {
   return object;
 };
 
-export const serializeDocument = (canvas: Canvas) => JSON.stringify(canvas.toObject());
+type SerializeGuard = () => () => void;
+
+const serializeGuards = new WeakMap<Canvas, SerializeGuard>();
+
+export const setSerializeGuard = (canvas: Canvas, guard: SerializeGuard | null) => {
+  if (guard) serializeGuards.set(canvas, guard);
+  else serializeGuards.delete(canvas);
+};
+
+export const serializeDocument = (canvas: Canvas) => {
+  const restore = serializeGuards.get(canvas)?.();
+  try {
+    return JSON.stringify(canvas.toObject());
+  } finally {
+    restore?.();
+  }
+};
 
 export const loadDocument = async (canvas: Canvas, json: string) => {
   await canvas.loadFromJSON(json, (_, instance) => {

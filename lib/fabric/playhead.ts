@@ -1,6 +1,7 @@
 import { Canvas, FabricObject } from "fabric";
 import { getDocumentDuration } from "@/lib/fabric/document";
 import { VideoClip } from "@/lib/fabric/video";
+import { createAnimations } from "@/lib/fabric/animations";
 import { clamp } from "@/lib/utils";
 
 const DRIFT_TOLERANCE = 0.1;
@@ -10,6 +11,8 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
   let playing = false;
   let frame = 0;
   let lastTick = 0;
+
+  const animations = createAnimations(canvas);
 
   const clips = () => canvas.getObjects().filter((object): object is VideoClip => object instanceof VideoClip);
 
@@ -31,12 +34,18 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
       }
     }
 
+    animations.seek(time);
     canvas.requestRenderAll();
   };
 
   const update = () => {
     apply();
     onChange?.();
+  };
+
+  const onDocumentChange = () => {
+    animations.rebuild();
+    apply();
   };
 
   const pause = () => {
@@ -73,10 +82,11 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
 
   const onRemoved = ({ target }: { target: FabricObject }) => {
     if (target instanceof VideoClip) target.video.pause();
+    onDocumentChange();
   };
 
-  canvas.on("object:added", apply);
-  canvas.on("object:modified", apply);
+  canvas.on("object:added", onDocumentChange);
+  canvas.on("object:modified", onDocumentChange);
   canvas.on("object:removed", onRemoved);
 
   return {
@@ -94,8 +104,9 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
     dispose: () => {
       pause();
       clips().forEach((clip) => clip.video.pause());
-      canvas.off("object:added", apply);
-      canvas.off("object:modified", apply);
+      animations.dispose();
+      canvas.off("object:added", onDocumentChange);
+      canvas.off("object:modified", onDocumentChange);
       canvas.off("object:removed", onRemoved);
     },
   };
