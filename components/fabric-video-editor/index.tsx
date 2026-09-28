@@ -17,6 +17,7 @@ import { createHistory, History } from "@/lib/fabric/history";
 import { createPlayhead, Playhead } from "@/lib/fabric/playhead";
 import { SVG_STRING } from "@/components/fabric-video-editor/svg-string";
 import TimeWindow from "@/components/fabric-video-editor/time-window";
+import Timeline from "@/components/fabric-video-editor/timeline";
 
 const SAMPLE_IMAGE_URL = "https://picsum.photos/id/1015/1200/800";
 
@@ -150,16 +151,6 @@ const FabricVideoEditor = () => {
         <Button onClick={playhead.toggle} disabled={length === 0}>
           {playhead.playing ? "Pause" : "Play"}
         </Button>
-        <input
-          type="range"
-          className="w-[520px]"
-          min={0}
-          max={length}
-          step={0.01}
-          value={playhead.time}
-          disabled={length === 0}
-          onChange={(event) => playhead.seek(Number(event.target.value))}
-        />
         <span className="w-32 text-sm text-gray-500 tabular-nums">
           {playhead.time.toFixed(2)} / {length.toFixed(2)} s
         </span>
@@ -176,6 +167,8 @@ const FabricVideoEditor = () => {
           Redo
         </Button>
       </Toolbar>
+
+      <Timeline canvas={canvas} playhead={playhead} />
 
       {selected && <TimeWindow canvas={canvas} object={selected} />}
 
