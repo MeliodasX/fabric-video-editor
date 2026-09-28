@@ -1,0 +1,2 @@
+beeps-10s.mp3 was generated for this series: a short sine beep at every whole second for ten seconds,
+rising one semitone per second. No third-party material. Use it however you like.

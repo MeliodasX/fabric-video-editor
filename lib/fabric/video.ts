@@ -21,14 +21,16 @@ export const loadVideoElement = (src: string) =>
 
 export class VideoClip extends FabricImage {
   static type = "VideoClip";
-  static customProperties = [...DOCUMENT_PROPERTIES, "trimStart"];
-  static ownDefaults = { objectCaching: false, srcFromAttribute: true, trimStart: 0 };
+  static customProperties = [...DOCUMENT_PROPERTIES, "trimStart", "volume", "muted"];
+  static ownDefaults = { objectCaching: false, srcFromAttribute: true, trimStart: 0, volume: 1, muted: false };
 
   static getDefaults() {
     return { ...super.getDefaults(), ...VideoClip.ownDefaults };
   }
 
   declare trimStart: number;
+  declare volume: number;
+  declare muted: boolean;
 
   constructor(element: HTMLVideoElement, options?: Partial<ImageProps> & { trimStart?: number }) {
     super(element, { ...VideoClip.ownDefaults, ...options });

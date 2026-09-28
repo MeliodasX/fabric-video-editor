@@ -1,7 +1,10 @@
 import { Canvas, FabricObject } from "fabric";
 import { getDocumentDuration } from "@/lib/fabric/document";
 import { VideoClip } from "@/lib/fabric/video";
+import { AudioTrack } from "@/lib/fabric/audio";
 import { createAnimations } from "@/lib/fabric/animations";
+import { AudioScheduler, createAudioScheduler } from "@/lib/fabric/scheduler";
+import { getAudioContext } from "@/lib/fabric/clock";
 import { clamp } from "@/lib/utils";
 
 const DRIFT_TOLERANCE = 0.1;
@@ -10,7 +13,9 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
   let time = 0;
   let playing = false;
   let frame = 0;
-  let lastTick = 0;
+  let frameClock = 0;
+  let lastFrame = 0;
+  let scheduler: AudioScheduler | null = null;
 
   const animations = createAnimations(canvas);
 
@@ -26,9 +31,12 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
 
     for (const clip of clips()) {
       if (playing && clip.visible) {
+        clip.video.muted = clip.muted;
+        clip.video.volume = clip.volume;
         if (clip.video.paused) clip.video.play().catch(() => {});
         if (Math.abs(clip.video.currentTime - clip.localTime(time)) > DRIFT_TOLERANCE) clip.seek(time);
       } else {
+        clip.video.muted = true;
         if (!clip.video.paused) clip.video.pause();
         clip.seek(time);
       }
@@ -52,13 +60,17 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
     if (!playing) return;
     playing = false;
     cancelAnimationFrame(frame);
+    scheduler?.stop();
     update();
   };
 
   const tick = (now: number) => {
+    if (!playing || !scheduler) return;
+
     const length = getDocumentDuration(canvas);
-    time = Math.min(time + (now - lastTick) / 1000, length);
-    lastTick = now;
+    frameClock += (now - lastFrame) / 1000;
+    lastFrame = now;
+    time = Math.min(scheduler.now(), length);
 
     if (time >= length) return pause();
 
@@ -66,17 +78,28 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
     frame = requestAnimationFrame(tick);
   };
 
-  const play = () => {
+  const play = async () => {
     if (playing) return;
     if (time >= getDocumentDuration(canvas)) time = 0;
+
+    await getAudioContext().resume();
+    await Promise.all(canvas.getObjects().map((object) => object instanceof AudioTrack && object.buffer));
+
+    scheduler ??= createAudioScheduler(canvas);
+    scheduler.start(time);
     playing = true;
-    lastTick = performance.now();
+    frameClock = time;
+    lastFrame = performance.now();
     update();
     frame = requestAnimationFrame(tick);
   };
 
   const seek = (target: number) => {
     time = clamp(target, 0, getDocumentDuration(canvas));
+    if (playing && scheduler) {
+      scheduler.start(time);
+      frameClock = time;
+    }
     update();
   };
 
@@ -95,6 +118,9 @@ export const createPlayhead = (canvas: Canvas, onChange?: () => void) => {
     },
     get playing() {
       return playing;
+    },
+    get frameClockDrift() {
+      return playing ? time - frameClock : 0;
     },
     play,
     pause,

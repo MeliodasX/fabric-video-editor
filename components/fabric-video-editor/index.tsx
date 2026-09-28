@@ -6,6 +6,7 @@ import { addSVGViaPath, addSVGViaString, addSVGViaURL } from "@/lib/fabric/svg";
 import { addImageFromFile, addImageFromURL, replaceImageSource } from "@/lib/fabric/images";
 import { addText, setActiveTextFont, updateActiveText } from "@/lib/fabric/text";
 import { addVideoClip, addVideoFromFile } from "@/lib/fabric/video";
+import { addAudioFromFile, addAudioTrack } from "@/lib/fabric/audio";
 import {
   attachDocument,
   getDocumentDuration,
@@ -25,6 +26,8 @@ const SAMPLE_VIDEOS = [
   { label: "Add counter clip (6 s)", src: "/videos/counter-6s.mp4" },
   { label: "Add tinted clip (8 s)", src: "/videos/counter-8s-tinted.mp4" },
 ];
+
+const SAMPLE_AUDIO = { label: "Add beep track (10 s)", src: "/audio/beeps-10s.mp3" };
 
 const FONTS = [{ family: "Arial" }, { family: "Georgia" }, { family: "Pacifico", url: "/fonts/Pacifico-Regular.ttf" }];
 
@@ -144,6 +147,7 @@ const FabricVideoEditor = () => {
   };
 
   const length = getDocumentDuration(canvas);
+  const drift = Math.round(playhead.frameClockDrift * 1000);
 
   return (
     <Stage>
@@ -154,6 +158,11 @@ const FabricVideoEditor = () => {
         <span className="w-32 text-sm text-gray-500 tabular-nums">
           {playhead.time.toFixed(2)} / {length.toFixed(2)} s
         </span>
+        {playhead.playing && (
+          <span className="text-sm text-gray-400 tabular-nums">
+            frame clock is {Math.abs(drift)} ms {drift >= 0 ? "behind" : "ahead"}
+          </span>
+        )}
       </Toolbar>
 
       <Toolbar title="Document">
@@ -180,6 +189,13 @@ const FabricVideoEditor = () => {
         ))}
         <FilePicker accept="video/*" onPick={(file) => addVideoFromFile(canvas, file)}>
           Upload video
+        </FilePicker>
+      </Toolbar>
+
+      <Toolbar title="Audio">
+        <Button onClick={() => addAudioTrack(canvas, SAMPLE_AUDIO.src)}>{SAMPLE_AUDIO.label}</Button>
+        <FilePicker accept="audio/*" onPick={(file) => addAudioFromFile(canvas, file)}>
+          Upload audio
         </FilePicker>
       </Toolbar>
 

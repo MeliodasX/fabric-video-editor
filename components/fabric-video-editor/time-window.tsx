@@ -1,10 +1,11 @@
 "use client";
 
 import { Canvas, FabricObject } from "fabric";
+import { AudioTrack } from "@/lib/fabric/audio";
 import { VideoClip } from "@/lib/fabric/video";
 import { Animation, DEFAULT_ANIMATION_DURATION } from "@/lib/fabric/animations";
 import { EFFECTS } from "@/lib/fabric/effects";
-import { objectType } from "@/lib/fabric/document";
+import { isMedia, Media, objectType } from "@/lib/fabric/document";
 import { clamp } from "@/lib/utils";
 
 type Props = {
@@ -12,15 +13,21 @@ type Props = {
   object: FabricObject;
 };
 
-type Editable = Partial<Pick<VideoClip, "start" | "duration" | "trimStart" | "entrance" | "exit">>;
+type Editable = Partial<
+  Pick<Media, "start" | "duration" | "trimStart" | "entrance" | "exit"> &
+    Pick<AudioTrack, "volume" | "fadeIn" | "fadeOut"> &
+    Pick<VideoClip, "muted">
+>;
 
 const MIN_DURATION = 0.1;
 
 const TimeWindow = ({ canvas, object }: Props) => {
   "use no memo";
 
-  const clip = object instanceof VideoClip ? object : null;
-  const maxDuration = clip ? clip.mediaDuration - clip.trimStart : Infinity;
+  const media = isMedia(object) ? object : null;
+  const track = object instanceof AudioTrack ? object : null;
+  const sound = track ?? (object instanceof VideoClip ? object : null);
+  const maxDuration = media ? media.mediaDuration - media.trimStart : Infinity;
 
   const update = (props: Editable) => {
     object.set(props);
@@ -28,9 +35,9 @@ const TimeWindow = ({ canvas, object }: Props) => {
   };
 
   const setTrimStart = (value: number) => {
-    if (!clip) return;
-    const trimStart = clamp(value, 0, clip.mediaDuration - MIN_DURATION);
-    update({ trimStart, duration: Math.min(clip.duration, clip.mediaDuration - trimStart) });
+    if (!media) return;
+    const trimStart = clamp(value, 0, media.mediaDuration - MIN_DURATION);
+    update({ trimStart, duration: Math.min(media.duration, media.mediaDuration - trimStart) });
   };
 
   return (
@@ -46,19 +53,64 @@ const TimeWindow = ({ canvas, object }: Props) => {
           max={maxDuration}
           onChange={(value) => update({ duration: clamp(value, MIN_DURATION, maxDuration) })}
         />
-        {clip && (
+        {media && (
           <>
             <Field
               label="Trim in"
-              value={clip.trimStart}
+              value={media.trimStart}
               min={0}
-              max={clip.mediaDuration - MIN_DURATION}
+              max={media.mediaDuration - MIN_DURATION}
               onChange={setTrimStart}
             />
-            <span className="text-gray-500">media {clip.mediaDuration.toFixed(1)} s</span>
+            <span className="text-gray-500">media {media.mediaDuration.toFixed(1)} s</span>
           </>
         )}
       </div>
+
+      {sound && (
+        <div className="flex flex-row flex-wrap items-center gap-2">
+          <span className="w-16 font-semibold">Sound</span>
+          <label className="flex items-center gap-1">
+            Volume
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={sound.volume}
+              onChange={(event) => update({ volume: Number(event.target.value) })}
+            />
+          </label>
+          {sound instanceof VideoClip && (
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={sound.muted}
+                onChange={(event) => update({ muted: event.target.checked })}
+              />
+              Mute
+            </label>
+          )}
+          {track && (
+            <>
+              <Field
+                label="Fade in"
+                value={track.fadeIn}
+                min={0}
+                max={track.duration}
+                onChange={(value) => update({ fadeIn: clamp(value, 0, track.duration) })}
+              />
+              <Field
+                label="Fade out"
+                value={track.fadeOut}
+                min={0}
+                max={track.duration}
+                onChange={(value) => update({ fadeOut: clamp(value, 0, track.duration) })}
+              />
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-row flex-wrap items-center gap-2">
         <span className="w-16 font-semibold">Animate</span>

@@ -32,9 +32,14 @@ export const attachDocument = (canvas: Canvas) => {
 
 export const objectType = (object: FabricObject) => (object.constructor as typeof FabricObject).type;
 
-export const addToCanvas = (canvas: Canvas, object: FabricObject) => {
+export type Media = FabricObject & { trimStart: number; mediaDuration: number };
+
+export const isMedia = (object: FabricObject): object is Media => "trimStart" in object && "mediaDuration" in object;
+
+export const addToCanvas = (canvas: Canvas, object: FabricObject, index?: number) => {
   canvas.centerObject(object);
-  canvas.add(object);
+  if (index === undefined) canvas.add(object);
+  else canvas.insertAt(index, object);
   canvas.setActiveObject(object);
   canvas.requestRenderAll();
   return object;

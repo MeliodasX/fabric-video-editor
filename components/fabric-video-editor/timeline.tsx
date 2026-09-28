@@ -4,7 +4,8 @@ import { PointerEvent, useState } from "react";
 import { Canvas, FabricImage, FabricObject, IText } from "fabric";
 import { Playhead } from "@/lib/fabric/playhead";
 import { VideoClip } from "@/lib/fabric/video";
-import { getDocumentDuration, objectType } from "@/lib/fabric/document";
+import { AudioTrack } from "@/lib/fabric/audio";
+import { getDocumentDuration, isMedia, objectType } from "@/lib/fabric/document";
 import { clamp } from "@/lib/utils";
 
 type Props = {
@@ -30,6 +31,7 @@ const MIN_DURATION = 0.1;
 const SNAP_PIXELS = 8;
 
 const colorFor = (object: FabricObject) => {
+  if (object instanceof AudioTrack) return "bg-violet-500";
   if (object instanceof VideoClip) return "bg-sky-500";
   if (object instanceof IText) return "bg-emerald-500";
   if (object instanceof FabricImage) return "bg-amber-500";
@@ -38,6 +40,7 @@ const colorFor = (object: FabricObject) => {
 
 const labelFor = (object: FabricObject) => {
   if (object instanceof IText) return object.text.slice(0, 16);
+  if (object instanceof AudioTrack) return "Audio";
   if (object instanceof VideoClip) return "Video";
   return objectType(object);
 };
@@ -85,7 +88,7 @@ const Timeline = ({ canvas, playhead }: Props) => {
       originX: event.clientX,
       start: object.start,
       duration: object.duration,
-      trimStart: object instanceof VideoClip ? object.trimStart : 0,
+      trimStart: isMedia(object) ? object.trimStart : 0,
     });
   };
 
@@ -94,7 +97,7 @@ const Timeline = ({ canvas, playhead }: Props) => {
     const { object, mode } = drag;
     const delta = toSeconds(event.clientX - drag.originX);
     const targets = snapTargets(object);
-    const clip = object instanceof VideoClip ? object : null;
+    const media = isMedia(object) ? object : null;
 
     if (mode === "move") {
       const end = drag.start + drag.duration;
@@ -103,7 +106,7 @@ const Timeline = ({ canvas, playhead }: Props) => {
       const start = snappedStart !== drag.start + delta ? snappedStart : snappedEnd - drag.duration;
       object.set({ start: Math.max(0, start) });
     } else if (mode === "trim-end") {
-      const maxDuration = clip ? clip.mediaDuration - clip.trimStart : Infinity;
+      const maxDuration = media ? media.mediaDuration - media.trimStart : Infinity;
       const end = snap(drag.start + drag.duration + delta, targets);
       object.set({ duration: clamp(end - drag.start, MIN_DURATION, maxDuration) });
     } else {
@@ -112,7 +115,7 @@ const Timeline = ({ canvas, playhead }: Props) => {
       const start = clamp(snap(drag.start + delta, targets), minStart, maxStart);
       const shift = start - drag.start;
       object.set({ start, duration: drag.duration - shift });
-      if (clip) clip.set({ trimStart: drag.trimStart + shift });
+      if (media) media.set({ trimStart: drag.trimStart + shift });
     }
 
     playhead.apply();
