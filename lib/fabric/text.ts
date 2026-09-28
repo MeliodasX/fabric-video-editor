@@ -1,21 +1,12 @@
 import { Canvas, IText } from "fabric";
 import { loadFont } from "@/lib/fabric/fonts";
+import { addToCanvas } from "@/lib/fabric/document";
 
 export const DEFAULT_FONT = "Arial";
 
 export const addText = (canvas: Canvas, text = "Double-click to edit") => {
-  const textObject = new IText(text, {
-    fontFamily: DEFAULT_FONT,
-    fontSize: 48,
-    fill: "#111111",
-  });
-
-  canvas.add(textObject);
-  canvas.centerObject(textObject);
-  canvas.setActiveObject(textObject);
-  canvas.requestRenderAll();
-
-  return textObject;
+  const textObject = new IText(text, { fontFamily: DEFAULT_FONT, fontSize: 48, fill: "#111111" });
+  return addToCanvas(canvas, textObject);
 };
 
 export type TextProps = Partial<
@@ -29,6 +20,7 @@ export const updateActiveText = (canvas: Canvas, props: TextProps) => {
   active.set(props);
   active.initDimensions();
   active.setCoords();
+  canvas.fire("object:modified", { target: active });
   canvas.requestRenderAll();
 };
 
